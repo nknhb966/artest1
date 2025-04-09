@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>越前国府発掘プロジェクトVR</title>
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script> <!-- VRとARでバージョン異なる -->
+    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-cursor-teleport@1.5.0/dist/aframe-cursor-teleport-component.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/aframe-blink-controls/dist/aframe-blink-controls.min.js"></script> <!-- VRとARで異なる -->
+  </head>
+ 
+  <body>
+    <script>
+      const sizeMultiplier = 15; // VRとARで異なる
+      
+      let numberOfModels = 16;
+      let modelAdded = Array(numberOfModels).fill(false);
+      let imageAdded = Array(numberOfModels).fill(false);
+
+      function spawnImageOnly(i, finalPositionImage, finalScaleImage, inv, imageUrl) {
+          const existingImage = document.querySelector(`.spawned-image${i}`);
+          const lineElement = document.getElementById(`line${i}`);
+
+          if (!imageAdded[i]) {
+              // 画像を追加
+              spawnImage(i, finalPositionImage, finalScaleImage, inv, imageUrl);
+              imageAdded[i] = true;
+              const clickableElement = document.querySelector(`.clickable:nth-child(${i})`);
+              const clickablePosition = clickableElement.getAttribute('position');
+              lineElement.setAttribute('line', 'color: white; opacity: 0.8;');
+              // 線の始点と終点の座標を設定
+              lineElement.setAttribute('line', {
+                  start: `${clickablePosition.x} ${clickablePosition.y} ${clickablePosition.z}`,
+                  end: `${clickablePosition.x + finalPositionImage.x} ${clickablePosition.y + finalPositionImage.y - finalScaleImage.y/2} ${clickablePosition.z + finalPositionImage.z}`
+              });
+          } else {
+              // 画像を削除
+              if (existingImage) {
+                  existingImage.parentNode.removeChild(existingImage);
+              }
+              // 線の始点と終点の削除
+              if (lineElement) {
+                  lineElement.removeAttribute('line');
+              }
+              imageAdded[i] = false;
+          }
+      }
+
+      function spawnModelImage(i, finalPositionImage, finalScaleImage, inv, imageUrl, finalScaleModel) {
+          const existingModel = document.querySelector(`.spawned-model${i}`);
+          const existingImage = document.querySelector(`.spawned-image${i}`);
+          const lineElement = document.getElementById(`line${i}`);
+
+          if (!modelAdded[i] && !imageAdded[i]) {
+              // モデルを追加
+              spawnModel(i, finalScaleModel);
+              modelAdded[i] = true;
+          } else if (modelAdded[i] && !imageAdded[i]) {
+              // 画像を追加
+              spawnImage(i, finalPositionImage, finalScaleImage, inv, imageUrl);
+              imageAdded[i] = true;
+              const clickableElement = document.querySelector(`.clickable:nth-child(${i})`);
+              const clickablePosition = clickableElement.getAttribute('position');
+              lineElement.setAttribute('line', 'color: white; opacity: 0.8;');
+              // 線の始点と終点の座標を設定
+              lineElement.setAttribute('line', {
+                  start: `${clickablePosition.x} ${clickablePosition.y} ${clickablePosition.z}`,
+                  end: `${clickablePosition.x + finalPositionImage.x} ${clickablePosition.y + finalPositionImage.y - finalScaleImage.y/2} ${clickablePosition.z + finalPositionImage.z}`
+              });
+          } else {
+              // モデルを削除
+              if (existingModel) {
+                  existingModel.parentNode.removeChild(existingModel);
+              }
+              // 画像を削除
+              if (existingImage) {
+                  existingImage.parentNode.removeChild(existingImage);
+              }
+              // 線の始点と終点の削除
+              if (lineElement) {
+                  lineElement.removeAttribute('line');
+              }
+              modelAdded[i] = false;
+              imageAdded[i] = false;
+          }
+      }
+
+      function spawnBoxImage(i, finalPositionImage, finalScaleImage, inv, imageUrl) {
+          const existingModel = document.querySelector(`.spawned-model${i}`);
+          const existingImage = document.querySelector(`.spawned-image${i}`);
+          const boxElement = document.getElementById(`box${i}`);
+          const boxtextElement = document.getElementById(`boxtext${i}`);
+          const lineElement = document.getElementById(`line${i}`);
+
+          if (!modelAdded[i] && !imageAdded[i]) {
+              // Boxを追加
+              spawnBox(i);
+              modelAdded[i] = true;
+          } else if (modelAdded[i] && !imageAdded[i]) {
+              // 画像を追加
+              spawnImage(i, finalPositionImage, finalScaleImage, inv, imageUrl);
+              imageAdded[i] = true;
+              const clickableElement = document.querySelector(`.clickable:nth-child(${i})`);
+              const clickablePosition = clickableElement.getAttribute('position');
+              lineElement.setAttribute('line', 'color: white; opacity: 0.8;');
+              // 線の始点と終点の座標を設定
+              lineElement.setAttribute('line', {
+                  start: `${clickablePosition.x} ${clickablePosition.y} ${clickablePosition.z}`,
+                  end: `${clickablePosition.x + finalPositionImage.x} ${clickablePosition.y + finalPositionImage.y - finalScaleImage.y/2} ${clickablePosition.z + finalPositionImage.z}`
+              });
+          } else {
+              // Boxを削除
+              if (existingModel) {
+                  boxElement.setAttribute('visible', 'false');
+                  boxtextElement.setAttribute('visible', 'false');
+              }
+              // 画像を削除
+              if (existingImage) {
+                  existingImage.parentNode.removeChild(existingImage);
+              }
+              // 線の始点と終点の削除
+              if (lineElement) {
+                  lineElement.removeAttribute('line');
+              }
+              modelAdded[i] = false;
+              imageAdded[i] = false;
+          }
+      }
+
+      function spawnImage(i, finalPosition, finalScale, inv, imageUrl) {
+          const existingImage = document.querySelector(`.spawned-image${i}`);
+          if (existingImage) {
+              existingImage.parentNode.removeChild(existingImage);
+              return;
+          }
+
+          const parentEntity = document.createElement('a-entity');
+          
+          const image = document.createElement('a-image');
+          image.classList.add(`spawned-image${i}`);
+          image.setAttribute('src', imageUrl);
+          if (inv == 0 ){
+            image.setAttribute('rotation', '0 0 0');
+          } else if (inv == 90) {
+            image.setAttribute('rotation', '0 90 0');
+          } else if (inv == -90) {
+            image.setAttribute('rotation', '0 -90 0');
+          } else {
+            image.setAttribute('rotation', '0 180 0');
+          }
+          image.setAttribute('animation__position', `property: position; to: ${finalPosition.x * sizeMultiplier} ${finalPosition.y * sizeMultiplier} ${finalPosition.z * sizeMultiplier}; dur: 2000; easing: easeInOutQuad`);
+          image.setAttribute('animation__scale', `property: scale; to: ${finalScale.x * sizeMultiplier} ${finalScale.y * sizeMultiplier} ${finalScale.z * sizeMultiplier}; dur: 2000; easing: easeInOutQuad`);
+
+          parentEntity.appendChild(image);
+
+          const clickableElements = document.querySelectorAll('.clickable');
+          if (clickableElements[i - 1]) {
+              clickableElements[i - 1].appendChild(parentEntity);
+          } else {
+              console.error('Clickable element not found for image');
+          }
+      }
+
+      function spawnModel(i, finalScale) {
+        const model = document.createElement('a-entity');
+        model.classList.add(`spawned-model${i}`);
+        model.setAttribute('gltf-model', `#model-asset${i}`);
+        model.setAttribute('animation__position', 'property: position; to: 0 3 0; dur: 2000; easing: easeInOutQuad');
+        model.setAttribute('scale', '0 0 0');
+        model.setAttribute('animation__scale', `property: scale; to: ${finalScale.x * sizeMultiplier} ${finalScale.y * sizeMultiplier} ${finalScale.z * sizeMultiplier}; dur: 2000; easing: easeInOutQuad`);
+        model.setAttribute('animation__rotation', 'property: rotation; to: 0 360 0; loop: true; dur: 20000; easing: linear');
+
+        const clickableElements = document.querySelectorAll('.clickable');
+        if (clickableElements[i - 1]) {
+          clickableElements[i - 1].appendChild(model);
+        } else {
+          console.error('Clickable element not found for model');
+        }
+      }
+
+      function spawnBox(i) {
+        const boxElement = document.getElementById(`box${i}`);
+        const boxtextElement = document.getElementById(`boxtext${i}`);
+        boxElement.classList.add(`spawned-model${i}`);
+        boxElement.setAttribute('visible', 'true');
+        boxtextElement.setAttribute('visible', 'true');
+      }
+
+      for (let i = 1; i <= numberOfModels; i++) {
+        AFRAME.registerComponent(`spawn-sphere${i}`, {
+          init: function () {
+            this.el.addEventListener('click', () => {
+              window[`Spawn${i}`]();
+            });
+          }
+        });
+      }
+
+      const baseUrl = "https://echizencity.github.io/opendata/kokufuhakkutsu/";
+
+      function Spawn1(){spawnBoxImage(1, { x: -0.5, y: 1.2, z: -2.3 }, { x: 1.5, y: 1.5, z: 0 }, 0, baseUrl + "20100_kokufuhakkutsu.png");}
+      function Spawn2(){spawnModelImage(2, { x: -0.5, y: 1.2, z: 1.2 }, { x: 1.5, y: 1.5, z: 0 }, 180, baseUrl + "20200_kokufuhakkutsu.png", { x: 1, y: 1, z: 1 });}
+      function Spawn3(){spawnBoxImage(3, { x: 0.3, y: 1.2, z: -2.3 }, { x: 1.5, y: 1.5, z: 0 }, 0, baseUrl + "20300_kokufuhakkutsu.png");}
+      function Spawn4(){spawnModelImage(4, { x: -0.2, y: 1.2, z: 0.8 }, { x: 1.5, y: 1.5, z: 0 }, 180, baseUrl + "20400_kokufuhakkutsu.png", { x: 1, y: 1, z: 1 });}
+      function Spawn5(){spawnImageOnly(5, { x: -0.5, y: 1.2, z: -2.3 }, { x: 1.5, y: 1.5, z: 0 }, 0, baseUrl + "20500_kokufuhakkutsu.png");}
+      function Spawn6(){spawnImageOnly(6, { x: 0 , y: 1.2, z: -2.8 }, { x: 1.5, y: 1.5, z: 0 }, 0, baseUrl + "20600_kokufuhakkutsu.png");}
+      function Spawn7(){spawnImageOnly(7, { x: 0.7, y: 1.2, z: -3.3 }, { x: 1.5, y: 1.5, z: 0 }, 0, baseUrl + "20700_kokufuhakkutsu.png");}
+      function Spawn8(){spawnImageOnly(8, { x: 1.4, y: 1.2, z: -1.5 }, { x: 1.5, y: 1.5, z: 0 }, -90, baseUrl + "20800_kokufuhakkutsu.png");}
+      function Spawn9(){spawnModelImage(9, { x: 2, y: 1.2, z: 0 }, { x: 1.5, y: 1.5, z: 0 }, -90, baseUrl + "20900_kokufuhakkutsu.png", { x: 1, y: 1, z: 1 });}
+      function Spawn10(){spawnImageOnly(10, { x: -1, y: 1.2, z: -0.7 }, { x: 1.5, y: 1.5, z: 0 }, 90, baseUrl + "21000_kokufuhakkutsu.png");}
+      function Spawn11(){spawnModelImage(11, { x: 0, y: 1.2, z: 0.8 }, { x: 1.5, y: 1.5, z: 0 }, 180, baseUrl + "21100_kokufuhakkutsu.png", { x: 1, y: 1, z: 1 });}
+      function Spawn12(){spawnModelImage(12, { x: 1.5, y: 1.2, z: 1.05 }, { x: 1.5, y: 1.5, z: 0 }, 180, baseUrl + "21200_kokufuhakkutsu.png", { x: 1, y: 1, z: 1 });}
+      function Spawn13(){spawnImageOnly(13, { x: 2, y: 1.35, z: 1.55 }, { x: 1.5, y: 1.5, z: 0 }, 180, baseUrl + "21300_kokufuhakkutsu.png");}
+      function Spawn14(){spawnModelImage(14, { x: 0.5, y: 1.2, z: 1.55 }, { x: 1.5, y: 1.5, z: 0 }, 180, baseUrl + "21400_kokufuhakkutsu.png", { x: 1, y: 1, z: 1 });}
+      function Spawn15(){spawnImageOnly(15, { x: 0, y: 1.2, z: -0.7 }, { x: 1.5, y: 1.5, z: 0 }, 0,  baseUrl + "21500_kokufuhakkutsu.png");}
+      function Spawn16(){spawnImageOnly(16, { x: -0.9, y: 1.2, z: -2.0 }, { x: 1.5, y: 1.5, z: 0 }, 0, baseUrl + "21600_kokufuhakkutsu.png");}
+    </script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function() {
+        function addAsset(id, filename) {
+          const asset = document.createElement("a-asset-item");
+          asset.setAttribute("id", id);
+          asset.setAttribute("src", `${baseUrl}${filename}`);
+          document.querySelector("a-assets").appendChild(asset);
+        }
+        addAsset("text-asset1", "text01.glb");
+        addAsset("text-asset2", "text02.glb");
+        addAsset("text-asset3", "text03.glb");
+        addAsset("text-asset4", "text04.glb");
+        addAsset("text-asset5", "text05.glb");
+        addAsset("text-asset6", "text05.glb");
+        addAsset("text-asset7", "text07.glb");
+        addAsset("text-asset8", "text08.glb");
+        addAsset("text-asset9", "text02.glb");
+        addAsset("text-asset10", "text07.glb");
+        addAsset("text-asset11", "text11.glb");
+        addAsset("text-asset12", "text02.glb");
+        addAsset("text-asset13", "text13.glb");
+        addAsset("text-asset14", "text11.glb");
+        addAsset("text-asset15", "text15.glb");
+        addAsset("text-asset16", "text15.glb");
+        addAsset("model-asset2", "model02_small.glb");
+        addAsset("model-asset4", "model04_small.glb");
+        addAsset("model-asset9", "model09_small.glb");
+        addAsset("model-asset11", "model11_small.glb");
+        addAsset("model-asset12", "model12_small.glb");
+        addAsset("model-asset14", "model14_small.glb");
+      });
+    </script>
+
+    <a-scene cursor="rayOrigin: mouse" raycaster="objects: .clickable" renderer="colorManagement: true;">
+
+      <!-- scene geometry -->
+      <a-assets>
+        <a-asset-item id="kokufu" src="https://www.city.echizen.lg.jp/office/030/021/open-data-echizen_d/fil/00101_kokufuhakkutsu.glb"></a-asset-item> <!-- VRはオリジナル版を使用 -->
+      </a-assets>
+
+      <!-- player -->
+      <a-entity id="cameraRig" position="0 0 0" cursor-teleport="cameraRig: #cameraRig; cameraHead: #head; collisionEntities: .collision; ignoreEntities: .clickable">
+        <a-entity id="head" position="0 1.52 0" camera look-controls="reverseMouseDrag: true"></a-entity> <!-- VRとARで異なる -->
+        <a-entity
+          id="ctlL"
+          laser-controls="hand: left"
+          raycaster="objects: .clickable"
+          line="color: red; opacity: 0.75"
+          blink-controls="
+            collisionEntities: .collision;
+            cameraRig: #cameraRig;
+            teleportOrigin: #head;
+            curveShootingSpeed: 6"></a-entity>
+        <a-entity
+          id="ctlR"
+          laser-controls="hand: right"
+          raycaster="objects: .clickable"
+          line="color: red; opacity: 0.75"
+          thumbstick-logging></a-entity>
+      </a-entity>
+
+      <!-- ui element -->
+      <a-entity id="container" position="0 0 -7.3" rotation="0 -90 0" move-model> <!-- 初期位置の設定、VRとARで異なる　初期設定時：position="0 0 0" rotation="0 0 0" -->
+        <a-entity class="clickable" spawn-sphere1 geometry="primitive: sphere" position="1.5 0.8 -0.5" material="color: white"></a-entity>
+        <a-entity class="clickable" spawn-sphere2 geometry="primitive: sphere" position="2.2 0.8 1.8" material="color: aqua"></a-entity>
+        <a-entity class="clickable" spawn-sphere3 geometry="primitive: sphere" position="4.1 0.8 -0.5" material="color: white"></a-entity>
+        <a-entity class="clickable" spawn-sphere4 geometry="primitive: sphere" position="4.3 0.8 2.2" material="color: aqua"></a-entity>
+        <a-entity class="clickable" spawn-sphere5 geometry="primitive: sphere" position="-0.5 0.8 -0.5" material="color: white"></a-entity>
+        <a-entity class="clickable" spawn-sphere6 geometry="primitive: sphere" position="-3.3 0.8 0" material="color: white"></a-entity>
+        <a-entity class="clickable" spawn-sphere7 geometry="primitive: sphere" position="2 0.8 0.5" material="color: white"></a-entity>
+        <a-entity class="clickable" spawn-sphere8 geometry="primitive: sphere" position="7.1 0.8 1.7" material="color: white"></a-entity>
+        <a-entity class="clickable" spawn-sphere9 geometry="primitive: sphere" position="6.5 0.8 1.8" material="color: aqua"></a-entity>
+        <a-entity class="clickable" spawn-sphere10 geometry="primitive: sphere" position="-7.1 0.8 3.1" material="color: white"></a-entity>
+        <a-entity class="clickable" spawn-sphere11 geometry="primitive: sphere" position="-6.9 0.8 2.7" material="color: aqua"></a-entity>
+        <a-entity class="clickable" spawn-sphere12 geometry="primitive: sphere" position="-6.65 0.8 2.45" material="color: aqua"></a-entity>
+        <a-entity class="clickable" spawn-sphere13 geometry="primitive: sphere" position="5.2 0.65 1.45" material="color: white"></a-entity>
+        <a-entity class="clickable" spawn-sphere14 geometry="primitive: sphere" position="5.2 0.8 1.45" material="color: aqua"></a-entity>
+        <a-entity class="clickable" spawn-sphere15 geometry="primitive: sphere" position="-6.1 0.8 -2.1" material="color: white"></a-entity>
+        <a-entity class="clickable" spawn-sphere16 geometry="primitive: sphere" position="7.6 0.8 -0.8" material="color: white"></a-entity>
+        <script>
+          const sphereScale = (1 / sizeMultiplier) + " " + (1 / sizeMultiplier) + " " + (1 / sizeMultiplier);
+          document.querySelectorAll('.clickable').forEach((element, index) => {
+            element.setAttribute('scale', sphereScale);
+          });
+        </script>
+
+        <a-entity gltf-model="#kokufu" scale="1 1 1" position="0 -0.5 0" rotation="0 20 0" class="model" collidable></a-entity>
+
+        <a-entity gltf-model="#text-asset1" scale="0.15 0.15 0.15" position="1.9 0.8 -0.5" rotation="0 0 0"></a-entity>
+        <a-entity gltf-model="#text-asset2" scale="0.15 0.15 0.15" position="1.8 0.8 1.8" rotation="0 180 0"></a-entity>
+        <a-entity gltf-model="#text-asset3" scale="0.15 0.15 0.15" position="4.3 0.8 -0.5" rotation="0 0 0"></a-entity>
+        <a-entity gltf-model="#text-asset4" scale="0.15 0.15 0.15" position="3.8 0.8 2.2" rotation="0 180 0"></a-entity>
+        <a-entity gltf-model="#text-asset5" scale="0.15 0.15 0.15" position="-0.5 0.8 -0.9" rotation="0 0 0"></a-entity>
+        <a-entity gltf-model="#text-asset6" scale="0.15 0.15 0.15" position="-2.8 0.8 0" rotation="0 0 0"></a-entity>
+        <a-entity gltf-model="#text-asset7" scale="0.15 0.15 0.15" position="2.8 0.8 0.5" rotation="0 0 0"></a-entity>
+        <a-entity gltf-model="#text-asset8" scale="0.15 0.15 0.15" position="7.1 0.8 2.1" rotation="0 180 0"></a-entity>
+        <a-entity gltf-model="#text-asset9" scale="0.15 0.15 0.15" position="6.1 0.8 2.0" rotation="0 180 0"></a-entity>
+        <a-entity gltf-model="#text-asset10" scale="0.15 0.15 0.15" position="-7.6 0.8 2.9" rotation="0 180 0"></a-entity>
+        <a-entity gltf-model="#text-asset11" scale="0.15 0.15 0.15" position="-7.25 0.8 2.7" rotation="0 180 0"></a-entity>
+        <a-entity gltf-model="#text-asset12" scale="0.15 0.15 0.15" position="-7.0 0.8 2.45" rotation="0 180 0"></a-entity>
+        <a-entity gltf-model="#text-asset13" scale="0.15 0.15 0.15" position="4.5 0.65 1.35" rotation="0 180 0"></a-entity>
+        <a-entity gltf-model="#text-asset14" scale="0.15 0.15 0.15" position="4.8 0.8 1.55" rotation="0 180 0"></a-entity>
+        <a-entity gltf-model="#text-asset15" scale="0.15 0.15 0.15" position="-6.9 0.8 0.2" rotation="0 0 0"></a-entity>
+        <a-entity gltf-model="#text-asset15" scale="0.15 0.15 0.15" position="-5.4 0.8 2.9" rotation="0 180 0"></a-entity>
+        <a-entity gltf-model="#text-asset15" scale="0.15 0.15 0.15" position="-6.4 0.8 -2.1" rotation="0 0 0"></a-entity>
+        <a-entity gltf-model="#text-asset16" scale="0.15 0.15 0.15" position="7.3 0.8 -0.8" rotation="0 0 0"></a-entity>
+
+        <script>
+          for (let i = 1; i <= numberOfModels; i++) {
+            document.write(`<a-entity id="line${i}"></a-entity>`);
+          }
+        </script>
+
+        <a-entity id="box1" geometry="primitive: box" material="color: white; opacity: 0.8" position="1.9 0 3.1" scale="1.5 1.5 0" animation="property: position; to: 1.5 0 -2.7; dur: 5000; easing: linear; dir: alternate; loop: true" visible="false"></a-entity>
+        <a-entity id="boxtext1" gltf-model="#text-asset1" position="1.9 0.9 3.1" scale="0.15 0.15 0.15" animation="property: position; to: 1.5 0.9 -2.7; dur: 5000; easing: linear; dir: alternate; loop: true" visible="false"></a-entity>
+        <a-entity id="box3" geometry="primitive: box" material="color: white; opacity: 0.8" position="4 0 3.1" scale="0.75 1.5 0" animation="property: position; to: 4 0 -2.7; dur: 5000; easing: linear; dir: alternate; loop: true" visible="false"></a-entity>
+        <a-entity id="boxtext3" gltf-model="#text-asset3" position="4 0.9 3.1" scale="0.15 0.15 0.15" animation="property: position; to: 4 0.9 -2.7; dur: 5000; easing: linear; dir: alternate; loop: true" visible="false"></a-entity>
+
+        <!-- VRとARで異なる rotationはy軸方向の回転のみ可="0 # 0"-->
+        <a-entity id="destination1" position="0 10 0" rotation="0 0 0"></a-entity> 
+        <a-entity id="destination2" position="0 0 0" rotation="0 0 0"></a-entity>
+
+        <!-- VRのみ設定（テレポート系） -->
+        <a-entity class="collision" position="0 0 0" rotation="-90 0 0" geometry="primitive: plane; width: 18; height: 8" material="color: aqua; opacity: 0."></a-entity>
+
+        <!-- VRのみ設定（上部概要） -->
+        <a-entity id="panel1" position="4 3.5 0.5">
+          <a-image src="https://echizencity.github.io/opendata/kokufuhakkutsu/20000_kokufuhakkutsu.png" scale="4 5 0" rotation="70 -90 0"></a-image>
+        </a-entity>
+        <a-entity id="panel2" position="-4 3.5 0.5">
+          <a-image src="https://echizencity.github.io/opendata/kokufuhakkutsu/20000_kokufuhakkutsu.png" scale="4 5 0" rotation="70 90 0"></a-image>
+        </a-entity>
+      </a-entity>
+    </a-scene>
+
+    <script>
+      const cameraRig = document.getElementById('cameraRig');
+      const modelsToSpawn1 = [1, 2, 3, 4, 9, 11, 12, 14];
+      const modelsToSpawn2 = [5, 6, 7, 8, 10, 13, 15, 16];
+
+      // VRとARで異なる
+      function moveLocation(destination) {
+        const cursorTeleport = cameraRig.components['cursor-teleport'];
+        cursorTeleport.teleportTo(destination.object3D.position, destination.object3D.quaternion); 
+        var head = document.getElementById('head');
+        if (head) {
+          restartRotation = Object.assign({}, head.getAttribute('rotation'));
+          restartRotation.y -= destination.object3D.rotation.y * 180 / Math.PI;
+        }
+      }
+
+      function showAll() {
+        modelsToSpawn1.forEach(index => {
+          if (!modelAdded[index] || !imageAdded[index]) {
+            window[`Spawn${index}`]();
+            if (!imageAdded[index]) {
+              window[`Spawn${index}`]();
+            }
+          }
+        });
+        modelsToSpawn2.forEach(index => {
+          if (!imageAdded[index]) {
+            window[`Spawn${index}`]();
+          }
+        });
+      }
+
+      function hideAll() {
+        modelsToSpawn1.forEach(index => {
+          if (modelAdded[index] && !imageAdded[index]) {
+            window[`Spawn${index}`]();
+            window[`Spawn${index}`]();
+          } else if (imageAdded[index]) {
+            window[`Spawn${index}`]();
+          }
+        });
+        modelsToSpawn2.forEach(index => {
+          if (imageAdded[index]) {
+            window[`Spawn${index}`]();
+          }
+        });
+      }
+
+      // 以下、VRとARで異なる
+      let isAllVisible = false;
+      let isLocationSwitch = false;
+      let gripButtonPressedR = false;
+      let aButtonPressedR = false;
+      let bButtonPressedR = false;
+      let gripButtonPressedL = false;
+      let xButtonPressedL = false;
+      let yButtonPressedL = false;
+      var initialPosition = {x: 0, y: 0, z: -7.3};
+      var currentRotation = {x: 0, y: 0, z: 0};
+      var restartRotation = {x: 0, y: 0, z: 0};
+      var deltaRotation = {x: 0, y: 0, z: 0};
+      
+      const ctlR = document.getElementById("ctlR");
+      const ctlL = document.getElementById("ctlL");
+      
+      // 右手コントローラーイベントリスナー
+      ctlR.addEventListener('gripdown', function (event) {
+        gripButtonPressedR = true;
+      });
+      
+      ctlR.addEventListener('gripup', function (event) {
+        gripButtonPressedR = false;
+      });
+      
+      ctlR.addEventListener('abuttondown', function (event) {
+        aButtonPressedR = true;
+        if (!gripButtonPressedR) {
+          toggleVisibility();
+        } else {
+          toggleLocations();
+        }
+      });
+      
+      ctlR.addEventListener('abuttonup', function (event) {
+        aButtonPressedR = false;
+      });
+      
+      ctlR.addEventListener('bbuttondown', function (event) {
+        bButtonPressedR = true;
+        if (!gripButtonPressedR) {
+          // Bボタンのみ処理なし
+        } else {
+          moveLocation(destination2);
+          document.getElementById('container').setAttribute('position', initialPosition);
+        }
+      });
+      
+      ctlR.addEventListener('bbuttonup', function (event) {
+        bButtonPressedR = false;
+      });
+      
+      // 左手コントローラーイベントリスナー
+      ctlL.addEventListener('gripdown', function (event) {
+        gripButtonPressedL = true;
+      });
+      
+      ctlL.addEventListener('gripup', function (event) {
+        gripButtonPressedL = false;
+      });
+      
+      ctlL.addEventListener('xbuttondown', function (event) {
+        xButtonPressedL = true;
+        if (!gripButtonPressedL) {
+          toggleVisibility();
+        } else {
+          toggleLocations();
+        }
+      });
+      
+      ctlL.addEventListener('xbuttonup', function (event) {
+        xButtonPressedL = false;
+      });
+      
+      ctlL.addEventListener('ybuttondown', function (event) {
+        yButtonPressedL = true;
+        if (!gripButtonPressedL) {
+          // Yボタンのみ処理なし
+        } else {
+          moveLocation(destination2);
+          document.getElementById('container').setAttribute('position', initialPosition);
+          updateDisplay();
+        }
+      });
+      
+      ctlL.addEventListener('ybuttonup', function (event) {
+        yButtonPressedL = false;
+      });
+      
+      function toggleVisibility() {
+        if (isAllVisible) {
+          hideAll();
+        } else {
+          showAll();
+        }
+        isAllVisible = !isAllVisible;
+      }
+      
+      function toggleLocations() {
+        const panel1 = document.querySelector('#panel1');
+        const panel2 = document.querySelector('#panel2');
+        if (isLocationSwitch) {
+          moveLocation(destination2);
+          if (panel1) panel1.setAttribute('visible', 'true');
+          if (panel2) panel2.setAttribute('visible', 'true');
+        } else {
+          moveLocation(destination1);
+          if (panel1) panel1.setAttribute('visible', 'false');
+          if (panel2) panel2.setAttribute('visible', 'false');
+        }
+        isLocationSwitch = !isLocationSwitch;
+      }
+    </script>
+
+    <script>
+      var velocity = {x: 0, y: 0, z: 0};
+      var acceleration = 0.02;
+      var deceleration = 0.008;
+      var maxVelocity = 0.040;
+      var shouldStop = true;
+
+      AFRAME.registerComponent('thumbstick-logging', {
+        init: function () {
+          this.el.addEventListener('thumbstickmoved', this.logThumbstick.bind(this));       
+        },
+
+        logThumbstick: function (event) {
+          var head = document.getElementById('head');
+          if (head) {
+            currentRotation = head.getAttribute('rotation');
+          }
+
+          if (event.detail.x == 0 && event.detail.y == 0) {
+            velocity = {x: 0, y: 0, z: 0};
+            shouldStop = true;
+          } else {
+            shouldStop = false;
+
+            // X軸のスティック入力に基づいて移動速度を設定
+            if (event.detail.x > 0.1 || event.detail.x < -0.1) {
+              velocity.x = - event.detail.x * acceleration;
+            } else {
+              velocity.x = 0;
+            }
+
+            // Y軸のスティック入力に基づいて移動速度を設定
+            if (event.detail.y > 0.1 || event.detail.y < -0.1) {
+              velocity.z = - event.detail.y * acceleration;
+            } else {
+              velocity.z = 0;
+            }
+          }
+        }
+      });
+      
+      function updateModelMovement() {
+        var model = document.getElementById('container');
+        var currentPosition = model.getAttribute('position');
+        var head = document.getElementById('head');
+        
+        // 現在の回転を取得
+        if (head) {
+          currentRotation = head.getAttribute('rotation');
+        }
+
+        if (shouldStop) {
+          velocity = {x: 0, y: 0, z: 0};
+          model.setAttribute('position', currentPosition);
+          return;
+        }
+
+        // 速度の減衰、最大速度の制御など
+        if (velocity.x > 0) {
+          velocity.x -= deceleration;
+          if (velocity.x < deceleration) {
+            velocity.x = 0;
+          }
+        }
+        if (velocity.x < 0) {
+          velocity.x += deceleration;
+          if (velocity.x > -deceleration) {
+            velocity.x = 0;
+          }
+        }
+        if (velocity.z > 0) {
+          velocity.z -= deceleration;
+          if (velocity.z < deceleration) {
+            velocity.z = 0;
+          }
+        }
+        if (velocity.z < 0) {
+          velocity.z += deceleration;
+          if (velocity.z > -deceleration) {
+            velocity.z = 0;
+          }
+        }
+
+        // 速度が最大速度を超えないように制御
+        var speed = Math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z);
+        if (speed > maxVelocity) {
+          var ratio = maxVelocity / speed;
+          velocity.x *= ratio;
+          velocity.z *= ratio;
+        }
+
+        // deltaRotationを計算
+        deltaRotation.x = currentRotation.x - restartRotation.x;
+        deltaRotation.y = currentRotation.y - restartRotation.y;
+        deltaRotation.z = currentRotation.z - restartRotation.z;
+          
+        // 現在の回転をラジアンに変換
+        var rad = deltaRotation.y * Math.PI / 180;
+
+        // currentRotationの向きに基づいて進行方向を計算
+        var directionX = velocity.x * Math.cos(rad) + velocity.z * Math.sin(rad);
+        var directionZ = - velocity.x * Math.sin(rad) + velocity.z * Math.cos(rad);
+
+        // 位置の更新
+        model.setAttribute('position', {
+          x: currentPosition.x + directionX,
+          y: currentPosition.y,
+          z: currentPosition.z + directionZ
+        });
+      }
+
+      // フレームごとにモデルの移動を更新
+      AFRAME.registerComponent('move-model', {
+        tick: function () {
+          updateModelMovement();
+        }
+      });
+    </script>
+  </body>
+</html>
